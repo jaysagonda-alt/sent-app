@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: sent-postgres
+    environment:
+      POSTGRES_USER: sent_user
+      POSTGRES_PASSWORD: sent_password
+      POSTGRES_DB: sent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sent_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: sent-backend
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://sent_user:sent_password@postgres:5432/sent
+      JWT_SECRET: dev-secret-change-in-production
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      FRONTEND_URL: http://localhost:5173
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  postgres_data:
